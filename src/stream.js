@@ -10,9 +10,7 @@ const headerData = require('./raspi-stream').headerData
 app.use('/', express.static('public'))
 // app.get('/', (req, res) => res.sendFile(__dirname + '/index.html'));
 
-const liveStream = getLiveStream({ width: 1280, height: 720, rotation: 180, bitrate: 2000000 /*roi: '0.2,0.2,0.5,0.5'*/ })
-
-const localStream = new StreamConcat([headerData.getStream(), liveStream])
+const liveStream = getLiveStream({ width: 1280, height: 720, rotation: 180, bitrate: 1000000 /*roi: '0.2,0.2,0.5,0.5'*/ })
 
 liveStream.on('data', data => console.log('liveStream: ' + data.length))
 
@@ -25,21 +23,23 @@ process.on('SIGINT', () => {
   process.exit()
 })
 
+let localStream
 let write = false
-localStream.on('data', data => {
-  if (write) {
-    fileStream.write(data)
-    console.log('writeFile: ' + data.length)
-  }
-})
 
 /**
  * Lister to user commands to start / stop writing file
  */
 process.stdin.on('data', function(d) {
   if (d.toString().trim() === 't') {
-    write = true
     console.log('Start writing file')
+    write = true
+    localStream = new StreamConcat([headerData.getStream(), liveStream])
+    localStream.on('data', data => {
+      if (write) {
+        fileStream.write(data)
+        console.log('writeFile: ' + data.length)
+      }
+    })
   }
   if (d.toString().trim() === 'f') {
     write = false
